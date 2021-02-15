@@ -1,0 +1,95 @@
+---
+title: "Streaming History - 2020"
+author: "Tim Potter"
+date: "2/14/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(jsonlite)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(knitr)
+library(RColorBrewer)
+```
+
+
+```{r data}
+#Load the json files
+json1 <- fromJSON(txt = "data/StreamingHistory0.json")
+json2 <- fromJSON(txt = "data/StreamingHistory1.json")
+
+#Join the two files into a single data frame
+data <- rbind(json1, json2)
+
+#Convert time played from MS to seconds
+data <- data %>%
+  mutate(secPlayed = msPlayed / 1000)
+
+#Drop all records shoter than 1 minute 
+data <- data %>%
+  filter(secPlayed > 60)
+
+#Add a factor column with the artist names
+data <- data %>%
+  mutate(artistName.f = as.factor(data$artistName))
+
+#Remove podcasts/rain noise from history
+data <- data %>%
+  filter(artistName.f != "Stardust Vibes" & artistName.f != "Sol Good Sounds")
+```
+
+```{r hist}
+#How many artists did I listen to?
+nrow(data %>%select(artistName) %>%
+  group_by(artistName) %>%
+  summarise(SongsPlayed = n()))
+  
+#What bands did I listen to the most songs from?
+data %>%
+  select(artistName, trackName) %>%
+  group_by(artistName) %>%
+  summarise(SongsPlayed = n()) %>%
+  filter(SongsPlayed > 50) %>%
+  arrange(desc(SongsPlayed), .by_group = TRUE) %>%
+  kable()
+
+#What bands did I listen to the most UNIQUE songs from?
+data %>%
+  select(artistName, trackName) %>%
+  group_by(artistName) %>%
+  summarise(SongsPlayed = n_distinct(trackName)) %>%
+  filter(SongsPlayed > 30) %>%
+  arrange(desc(SongsPlayed), .by_group = TRUE) %>%
+  kable()
+
+temp <- data %>%
+  select(artistName.f, trackName) %>%
+  group_by(artistName.f) %>%
+  summarise(SongsPlayed = n_distinct(trackName)) %>%
+  filter(SongsPlayed > 10) %>%
+  arrange(desc(SongsPlayed), .by_group = TRUE)
+
+temp$artistName.f <- factor(temp$artistName.f, levels = temp$artistName.f[order(temp$SongsPlayed)])
+temp %>%
+  ggplot(aes(x = artistName.f, y = SongsPlayed, fill = artistName.f)) + geom_col() + 
+  coord_flip() + 
+  xlab("Unique Songs Listened to") +
+  ylab("Artist Name") +
+  ggtitle("Spotify History - Top Artists") +
+  labs("Streaming History from 2/8/20 - 2/8/21
+       Data from Spotify") +
+  theme(plot.title = element_text(hjust = 0.5), legend.position = "none") +
+  scale_fill_ordinal()
+
+#What songs did I listen to the most?
+data %>%
+  select(artistName, trackName) %>%
+  group_by(trackName) %>%
+  summarise(timesPlayed = n()) %>%
+  filter(timesPlayed > 40) %>%
+  arrange(desc(timesPlayed), .by_group = TRUE) %>%
+  kable()
+```
