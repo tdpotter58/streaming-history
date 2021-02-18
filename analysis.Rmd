@@ -13,6 +13,7 @@ library(tidyr)
 library(ggplot2)
 library(knitr)
 library(RColorBrewer)
+library(stringr)
 ```
 
 
@@ -38,7 +39,29 @@ data <- data %>%
 
 #Remove podcasts/rain noise from history
 data <- data %>%
-  filter(artistName.f != "Stardust Vibes" & artistName.f != "Sol Good Sounds")
+  filter(artistName.f != "Stardust Vibes" & artistName.f != "Sol Good Sounds" & artistName.f != "Brain Timbre" & artistName.f != "Calmsound"
+         & artistName.f != "Deep Rain Sampling" & artistName.f != "Dreams of Dreams" & artistName.f != "Epic Soundscapes" 
+         & artistName.f != "Ambiworld" & artistName.f != "Big Sounds" & artistName.f != "Chill Bees" & artistName.f != "Decidic FX" 
+         & artistName.f != "Fabricantes De Lluvia" & artistName.f != "Factorial FX" & artistName.f != "Forest FX" & artistName.f != "Heavy Rain Sounds" 
+         & artistName.f != "Hi Freq Samples" & artistName.f != "Lluvia PQ" & artistName.f != "Brain Timbre" & !str_detect(artistName.f, "Rain")
+         & !str_detect(artistName.f, "Nature") & artistName.f != "Natural Sample Makers" & artistName.f != "Natural Samples" 
+         & artistName.f != "Natural Woodland Sounds" & artistName.f != "Naturaleza FX" & artistName.f != "Sampling XL" 
+         & artistName.f != "Selective Sounds PTA" & artistName.f != "Serenity of Sound" & artistName.f != "Sky Fall SF" & artistName.f != "Sleep Tight" 
+         & artistName.f != "Sound Library XL" & artistName.f != "Stereo Outdoor Sampling" & artistName.f != "The Outdoor Library" 
+         & artistName.f != "The Sleep Helpers" & artistName.f != "The White Noise Zen & Meditation Sound Lab" 
+         & artistName.f != "Thunderbound Productions" & artistName.f != "Thunderstorm" & artistName.f != "Thunderstorm Sound Bank" 
+         & artistName.f != "Tranquility Spree" & artistName.f != "Weather Factory" & artistName.f != "Winds and Oceans" & artistName.f != "Wp Sounds")
+#I should find a better way to do this
+rain <- data %>%
+  filter(str_detect(trackName, "Rain"))
+
+#Extract the date
+data <- data %>%
+  mutate(date = str_sub(endTime,1,10)) %>%
+  mutate(month = str_sub(endTime,1,7)) %>%
+  mutate(day = str_sub(endTime,9,10))
+
+data$day <- as.numeric(data$day)
 ```
 
 ```{r hist}
@@ -55,6 +78,26 @@ data %>%
   filter(SongsPlayed > 50) %>%
   arrange(desc(SongsPlayed), .by_group = TRUE) %>%
   kable()
+
+#What proportion of listens came from my top 5 bands?
+top_5 <- data %>%
+  select(artistName, trackName) %>%
+  group_by(artistName) %>%
+  summarise(SongsPlayed = n()) %>%
+  filter(SongsPlayed > 50) %>%
+  arrange(desc(SongsPlayed), .by_group = TRUE) %>%
+  slice_max(order_by = SongsPlayed, n = 5)
+sum(top_5$SongsPlayed) / nrow(data)
+
+#How about top 10?
+top_10 <- data %>%
+  select(artistName, trackName) %>%
+  group_by(artistName) %>%
+  summarise(SongsPlayed = n()) %>%
+  filter(SongsPlayed > 50) %>%
+  arrange(desc(SongsPlayed), .by_group = TRUE) %>%
+  slice_max(order_by = SongsPlayed, n = 10)
+sum(top_10$SongsPlayed) / nrow(data)
 
 #What bands did I listen to the most UNIQUE songs from?
 data %>%
@@ -79,7 +122,7 @@ temp %>%
   xlab("Unique Songs Listened to") +
   ylab("Artist Name") +
   ggtitle("Spotify History - Top Artists") +
-  labs("Streaming History from 2/8/20 - 2/8/21
+  labs("Streaming History from 2/7/20 - 2/8/21
        Data from Spotify") +
   theme(plot.title = element_text(hjust = 0.5), legend.position = "none") +
   scale_fill_ordinal()
@@ -92,4 +135,19 @@ data %>%
   filter(timesPlayed > 40) %>%
   arrange(desc(timesPlayed), .by_group = TRUE) %>%
   kable()
+
+#How much music was I listening to each day?
+ticks <- data %>%
+  filter(day == 1)
+data %>%
+  ggplot(aes(x = date)) + geom_bar(color = "black") +
+  scale_x_discrete(breaks = ticks$date, labels = ticks$date) + 
+  theme(axis.text.x = element_text(angle = 60, hjust = 1)) +
+  xlab("Number of Songs Streamed") +
+  ylab("Date") +
+  ggtitle("Songs Streamed per Day") +
+  labs("Streaming History from 2/7/20 - 2/8/21
+       Data from Spotify") +
+  theme(plot.title = element_text(hjust = 0.5), legend.position = "none")
+
 ```
